@@ -759,6 +759,7 @@ def build_cmake(root_dir, tmp_dir, env, thread_count,
         if 'EMBED_GASNET_SRC' in env:
             cmdline.append('-DLegion_EMBED_GASNet_LOCALSRC=' + env['EMBED_GASNET_SRC'])
     cmdline.append('-DLegion_USE_CUDA=%s' % ('ON' if env['USE_CUDA'] == '1' else 'OFF'))
+    cmdline.append('-DLegion_HIJACK_CUDART=%s' % ('ON' if env['USE_CUDA_HIJACK'] == '1' else 'OFF'))
     if 'GPU_ARCH' in env:
         cmdline.append('-DLegion_CUDA_ARCH=%s' % env['GPU_ARCH'])
     cmdline.append('-DLegion_USE_HIP=%s' % ('ON' if env['USE_HIP'] == '1' else 'OFF'))
@@ -1066,6 +1067,7 @@ def run_tests(test_modules=None,
         ('LAUNCHER', ' '.join(launcher)),
         ('REALM_NETWORKS', networks),
         ('USE_CUDA', '1' if use_cuda else '0'),
+        ('USE_CUDA_HIJACK', os.environ.get('REALM_USE_CUDART_HIJACK', '1')),
         ('TEST_CUDA', '1' if use_cuda else '0'),
         ('USE_HIP', '1' if use_hip else '0'),
         ('TEST_HIP', '1' if use_hip else '0'),

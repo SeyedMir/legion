@@ -512,6 +512,17 @@ if("${Legion_NETWORKS}" MATCHES .*mpi.*)
 endif()
 
 #------------------------------------------------------------------------------#
+# UCX configuration
+#------------------------------------------------------------------------------#
+if("${Legion_NETWORKS}" MATCHES .*ucx.*)
+  find_package(UCX REQUIRED)
+  find_package(MPI REQUIRED) # for MPI bootstrap plugin
+  # define variable for realm_defines.h
+  set(REALM_USE_UCX ON)
+  set(Legion_MPI_INTEROP ON)
+endif()
+
+#------------------------------------------------------------------------------#
 # LLVM configuration
 #------------------------------------------------------------------------------#
 option(Legion_USE_LLVM "Use LLVM JIT operations" OFF)
