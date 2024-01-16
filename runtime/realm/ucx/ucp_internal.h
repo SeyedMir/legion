@@ -104,7 +104,7 @@ namespace UCP {
       AmWithRemoteAddrMode am_wra_mode{AM_WITH_REMOTE_ADDR_MODE_AUTO};
       bool bind_hostmem{true};
       int pollers_max{2};
-      int num_priorities{2};
+      int num_priorities{1};
       int prog_boff_max{4}; //progress thread maximum backoff
       int prog_itr_max{16};
       int rdesc_rel_max{16};
@@ -305,11 +305,10 @@ namespace UCP {
     bool commit_unicast(size_t act_payload_size);
     bool commit_multicast(size_t act_payload_size);
     bool send_fast_path(ucp_ep_h ep, size_t act_payload_size);
-    bool send_slow_path(ucp_ep_h ep, size_t act_payload_size,
-        uint32_t flags);
+    bool send_slow_path(ucp_ep_h ep, size_t act_payload_size, uint32_t flags);
     Request *make_request(size_t act_payload_size);
     static void cleanup_request(Request *req, UCPInternal *internal);
-    static bool send_request(Request *req, unsigned am_id);
+    static bool send_request(Request *req, unsigned am_id, uint8_t priority);
     static void am_local_failure_handler(Request *req, UCPInternal *internal);
     static void am_local_comp_handler(void *request,
         ucs_status_t status, void *user_data);
@@ -332,6 +331,7 @@ namespace UCP {
     RemoteComp *remote_comp{nullptr};
     bool is_multicast{false};
     ucs_memory_type_t memtype;
+    uint8_t priority;
 
     UCPMsgHdr ucp_msg_hdr;
     // nothing should be added after 'ucp_msg_hdr'

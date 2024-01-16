@@ -51,6 +51,7 @@ namespace UCP {
     struct Request {
       OpType                    op_type;
       ucp_ep_h                  ep;
+      uint8_t                   priority;
       uint32_t                  flags;
       void                      *args;
       void                      *payload;
@@ -103,7 +104,8 @@ namespace UCP {
     bool set_am_handler(unsigned am_id, ucp_am_recv_callback_t cb, void *args);
     bool progress();
     void return_am_rdesc(void *rdesc);
-    bool am_send_fast_path(ucp_ep_h ep, unsigned am_id,
+    bool am_send_fast_path(ucp_ep_h ep,
+        unsigned am_id, uint8_t priority,
         const void *header, size_t header_size,
         const void *payload, size_t payload_size,
         ucs_memory_type_t memtype);

@@ -186,7 +186,8 @@ err:
     am_rdesc_q.push(rdesc);
   }
 
-  bool UCPWorker::am_send_fast_path(ucp_ep_h ep, unsigned am_id,
+  bool UCPWorker::am_send_fast_path(ucp_ep_h ep,
+      unsigned am_id, uint8_t priority,
       const void *header, size_t header_size,
       const void *payload, size_t payload_size,
       ucs_memory_type_t memtype)
@@ -198,9 +199,11 @@ err:
 
     param.op_attr_mask = UCP_OP_ATTR_FLAG_FORCE_IMM_CMPL |
                          UCP_OP_ATTR_FIELD_MEMORY_TYPE   |
+                         UCP_OP_ATTR_FIELD_PRIORITY      |
                          UCP_OP_ATTR_FIELD_FLAGS;
 
     param.memory_type  = memtype;
+    param.priority     = priority;
     param.flags        = UCP_AM_SEND_FLAG_COPY_HEADER;
 
     scount.fetch_add_acqrel(1);
@@ -222,11 +225,13 @@ err:
                          UCP_OP_ATTR_FIELD_CALLBACK    |
                          UCP_OP_ATTR_FIELD_USER_DATA   |
                          UCP_OP_ATTR_FIELD_MEMORY_TYPE |
+                         UCP_OP_ATTR_FIELD_PRIORITY    |
                          UCP_OP_ATTR_FIELD_FLAGS;
     param.request      = req;
     param.cb.send      = req->cb,
     param.user_data    = req->args,
     param.memory_type  = req->memtype,
+    param.priority     = req->priority,
     param.flags        = req->flags;
 
     scount.fetch_add_acqrel(1);
@@ -433,8 +438,10 @@ err:
   {
     ucp_ep_h ep;
     ucp_ep_params_t ep_params;
-    ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;
-    ep_params.address    = addr;
+    ep_params.field_mask     = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
+                               UCP_EP_PARAM_FIELD_NUM_PRIORITIES;
+    ep_params.address        = addr;
+    ep_params.num_priorities = 2;
 
 #ifdef REALM_USE_CUDA
     Cuda::AutoGPUContext agc(context->gpu);

@@ -1016,6 +1016,7 @@ err:
       req->ucp.payload_size   = 0;
       req->ucp.memtype        = UCS_MEMORY_TYPE_HOST;
       req->ucp.cb             = &UCPInternal::am_send_reply_comp_handler;
+      req->ucp.priority       = 0;
       req->ucp.am.id          = AM_ID_REPLY;
       req->ucp.am.header      = &cb_args->remote_comp;
       req->ucp.am.header_size = sizeof(cb_args->remote_comp);
@@ -1896,12 +1897,11 @@ err:
     , src_payload_line_stride(_src_payload_line_stride)
   {
     const UCPContext *context = internal->get_context(_src_segment);
-    uint8_t priority =
+    priority =
         (_header_size + _max_payload_size <= internal->config.priority_size_max)
-            ? internal->config.num_priorities - 1
-            : 0;
+            ? 1 : 0;
 
-    worker = internal->get_tx_worker(context, priority);
+    worker = internal->get_tx_worker(context, 0);
     memtype =
         _src_segment ? realm2ucs_memtype(_src_segment->memtype) : UCS_MEMORY_TYPE_HOST;
 
@@ -2089,7 +2089,7 @@ err:
 
   bool UCPMessageImpl::send_fast_path(ucp_ep_h ep, size_t act_payload_size)
   {
-    bool ok = worker->am_send_fast_path(ep, AM_ID,
+    bool ok = worker->am_send_fast_path(ep, AM_ID, priority,
         &ucp_msg_hdr, sizeof(ucp_msg_hdr) + header_size,
         payload_base, act_payload_size, memtype);
 
@@ -2119,7 +2119,7 @@ err:
     req->ucp.ep     = ep;
     req->ucp.flags |= flags;
 
-    CHKERR_JUMP(!UCPMessageImpl::send_request(req, AM_ID),
+    CHKERR_JUMP(!UCPMessageImpl::send_request(req, AM_ID, priority),
         "failed to send am request in slow path", log_ucp, err_rel_req);
 
     return true;
@@ -2130,12 +2130,14 @@ err:
     return false;
   }
 
-  bool UCPMessageImpl::send_request(Request *req, unsigned am_id)
+  bool UCPMessageImpl::send_request(Request *req,
+      unsigned am_id, uint8_t priority)
   {
     req->ucp.op_type = UCPWorker::OpType::AM_SEND;
     req->ucp.args    = req;
     req->ucp.cb      = &UCPMessageImpl::am_local_comp_handler;
     req->ucp.am.id   = am_id;
+    req->ucp.priority = priority;
 
     return req->worker->submit_req(&req->ucp);
   }
@@ -2231,7 +2233,7 @@ err:
     req->ucp.payload_size = 0;
     // we're sending header only; memtype will be host
     req->ucp.memtype = UCS_MEMORY_TYPE_HOST;
-    CHKERR_JUMP(!UCPMessageImpl::send_request(req, AM_ID_RDMA),
+    CHKERR_JUMP(!UCPMessageImpl::send_request(req, AM_ID_RDMA, req->ucp.priority),
         "failed to send am request in put flush callback", log_ucp, err);
 
     return;
@@ -2250,6 +2252,8 @@ err:
     req = make_request(ucp_msg_hdr.rdma_payload_size);
     CHKERR_JUMP(req == nullptr, "failed to make am request", log_ucp, err);
 
+    req->ucp.priority = priority;
+
     req_put = internal->request_get(worker);
     CHKERR_JUMP(req_put == nullptr, "failed to get request", log_ucp, err_rel_req);
 
@@ -2262,6 +2266,7 @@ err:
     req_put->ucp.ep              = ep;
     req_put->ucp.payload         = req->ucp.payload;
     req_put->ucp.payload_size    = req->ucp.payload_size;
+    req_put->ucp.priority        = req->ucp.priority;
     req_put->ucp.memtype         = req->ucp.memtype;
     req_put->ucp.flags           = 0;
     req_put->ucp.args            = req_put;
@@ -2319,7 +2324,7 @@ err:
       *req = *req_prim;
       CHKERR_JUMP(!worker->ep_get(target, remote_dev_index, &req->ucp.ep),
           "failed to get ep", log_ucp, err);
-      if (!UCPMessageImpl::send_request(req, AM_ID)) {
+      if (!UCPMessageImpl::send_request(req, AM_ID, priority)) {
         log_ucp.error() << "failed to send multicast am request";
         goto err_update_pending;
       }
